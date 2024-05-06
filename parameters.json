@@ -3,5 +3,5 @@
     "batch_size": 64,
     "images_per_class": 20,
     "num_runs": 10,
-    "n_samples_add_pool": 10
+    "n_samples_add_pool": 100
 }
