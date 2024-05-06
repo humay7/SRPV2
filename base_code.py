@@ -111,11 +111,12 @@ def single_run(run_number, results_writer):
         print('Run {} -> Epoch [{}/{}], LP:{}, UP:{}, Train Acc: {:.2f}%, Loss: {:.6f}, Test Acc: {:.2f}%'.format(run_number,epoch, epochs,len(labeled_indices),len(unlabeled_indices), train_accuracy, train_loss,test_accuracy))
         # Store results
         results_writer.writerow([run_number, epoch, train_loss, train_accuracy, test_accuracy])
-        uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples_add_pool)
-        labeled_indices.extend(uncertain_indices)
-        unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
-        labeled_loader = DataLoader(torch.utils.data.Subset(train_set, labeled_indices), batch_size=batch_size, shuffle=True)
-        unlabeled_loader = DataLoader(torch.utils.data.Subset(train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
+        if(epoch < epochs):    #Avoid Running Uncertainty Sampling during Last Iteration
+            uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples_add_pool)
+            labeled_indices.extend(uncertain_indices)
+            unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
+            labeled_loader = DataLoader(torch.utils.data.Subset(train_set, labeled_indices), batch_size=batch_size, shuffle=True)
+            unlabeled_loader = DataLoader(torch.utils.data.Subset(train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
 
 # Define a function for training the model
 def train_model(model, labeled_loader, optimizer, criterion):

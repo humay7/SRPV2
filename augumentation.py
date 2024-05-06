@@ -2,7 +2,14 @@
 import numpy as np
 import cv2
 from PIL import Image
+import torch
 import torchvision.transforms as transforms
+import random
+
+# Set random seeds for reproducibility
+torch.manual_seed(42)
+np.random.seed(42)
+random.seed(42)
 
 def get_augmentation(augmentation_type):
     if augmentation_type == 'al_withoutda':
@@ -93,5 +100,61 @@ def get_augmentation(augmentation_type):
             transforms.ToTensor(),                  
             transforms.Normalize((0.1307,), (0.3081,))
         ])
+    elif augmentation_type == 'random_transform':
+        return transforms.Compose([
+            transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
+            transforms.Grayscale(num_output_channels=3),
+            transforms.ToTensor(),                  
+            transforms.Normalize((0.1307,), (0.3081,))
+        ])
+    elif augmentation_type == 'elastic_transform':
+        return transforms.Compose([
+        transforms.ElasticTransform(alpha=50.0, sigma=5.0),
+        transforms.Grayscale(num_output_channels=3),  
+        transforms.ToTensor(),  
+        transforms.Normalize((0.1307,), (0.3081,))  
+    ])
+    elif augmentation_type == 'random_invert':
+        return transforms.Compose([
+        transforms.RandomInvert(p=0.2),
+        transforms.Grayscale(num_output_channels=3),  
+        transforms.ToTensor(),  
+        transforms.Normalize((0.1307,), (0.3081,))  
+    ])
+    elif augmentation_type == 'random_posterize':
+        return transforms.Compose([
+        transforms.RandomPosterize(bits=2, p=0.5),
+        transforms.Grayscale(num_output_channels=3),  
+        transforms.ToTensor(),  
+        transforms.Normalize((0.1307,), (0.3081,))  
+    ])
+    elif augmentation_type == 'random_solarize':
+        return transforms.Compose([
+        transforms.RandomSolarize(threshold=150, p=0.3),
+        transforms.Grayscale(num_output_channels=3),  
+        transforms.ToTensor(),  
+        transforms.Normalize((0.1307,), (0.3081,))  
+    ])
+    elif augmentation_type == 'random_sharpeness':
+        return transforms.Compose([
+        transforms.RandomAdjustSharpness(sharpness_factor=2),
+        transforms.Grayscale(num_output_channels=3),  
+        transforms.ToTensor(),  
+        transforms.Normalize((0.1307,), (0.3081,))  
+    ])
+    elif augmentation_type == 'random_autocontrast':
+        return transforms.Compose([
+        transforms.RandomAutocontrast(p=0.4),
+        transforms.Grayscale(num_output_channels=3),  
+        transforms.ToTensor(),  
+        transforms.Normalize((0.1307,), (0.3081,))  
+    ])
+    elif augmentation_type == 'random_equalize':
+        return transforms.Compose([
+        transforms.RandomEqualize(p=0.4),
+        transforms.Grayscale(num_output_channels=3),  
+        transforms.ToTensor(),  
+        transforms.Normalize((0.1307,), (0.3081,))  
+    ])
     else:
         raise ValueError("Invalid augmentation type")
