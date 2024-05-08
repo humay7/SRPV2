@@ -15,7 +15,7 @@ pip uninstall torch
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 Also install these packages by running the below line on Terminal
-pip install opencv-python virtualenv matplotlib pandas numpy scikit-learn 
+pip install opencv-python virtualenv matplotlib pandas numpy scikit-learn argparse
 
 
 Use parameters.json file to configure the runs

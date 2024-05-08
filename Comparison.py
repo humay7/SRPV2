@@ -31,7 +31,7 @@ df = pd.read_csv(csv_file_path)
 df_train = df.sort_values(by='Final Train Accuracy', ascending=False)
 df_test = df.sort_values(by='Final Test Accuracy', ascending=False)
 
-fig, axs = plt.subplots(1,2, figsize=(12,10))
+fig, axs = plt.subplots(1,2, figsize=(25,15))
 
 # Plotting Train Accuracy
 axs[0].bar(df_train['MethodName'], df_train['Final Train Accuracy'], color='blue')
@@ -58,6 +58,7 @@ for i, v in enumerate(df_test['Final Test Accuracy']):
     axs[1].text(i, v, str(round(v, 2)), ha='center', va='bottom')
 
 # Adjust layout and show the plot
+plt.xticks(fontsize=16)
 plt.tight_layout()
 plot_path = os.path.join(dump_comparison_path, 'Accuracy_Comparison.png')
 plt.savefig(plot_path)
