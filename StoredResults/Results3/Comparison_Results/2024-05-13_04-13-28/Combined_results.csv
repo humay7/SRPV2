@@ -1,0 +1,15 @@
+Final Epoch,MethodName,Final Train Accuracy,Final Test Accuracy
+10,rotation10saturation50,94.64545454545456,90.836
+10,random_rotation_shear_saturation,93.67272727272729,90.753
+10,random_sharpeness_invert,92.59090909090908,90.162
+10,brightness30contrast50rotation10,94.6909090909091,91.91
+10,brightness70contrast70,94.83636363636364,91.243
+10,blur_shear,94.84545454545454,90.406
+10,brightness30contrast50,95.53636363636365,92.098
+10,random_autocontrast_affine_equalize,87.4,85.683
+10,random_posterize_transform_contrast,93.70909090909092,91.107
+10,al_withoutda,96.1909090909091,87.187
+10,brightness50contrast90,93.28181818181818,91.522
+10,brightness50contrast50,94.93636363636364,89.25699999999999
+10,random_solarize_sharpness,90.75454545454544,90.924
+10,brightness50contrast30,95.24545454545456,90.293
