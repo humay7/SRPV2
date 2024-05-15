@@ -1,0 +1,22 @@
+Final Epoch,MethodName,Final Train Accuracy,Final Test Accuracy
+10,al_withoutda_blur_brightness,94.98181818181818,91.343
+10,random_sharpeness_random_transform_rotation,93.47272727272728,90.649
+10,al_withoutda_blur_contrast,95.49090909090908,91.56
+10,random_equalize_random_invert_random_posterize,92.31818181818184,91.679
+10,random_autocontrast_random_equalize_random_invert,91.32727272727271,89.97
+10,random_solarize_random_sharpeness_rotation,88.04545454545455,91.205
+10,random_solarize_random_sharpeness_random_transform,88.83636363636364,92.287
+10,colorjitter_contrast_elastic_transform,91.98181818181816,92.447
+10,brightness_colorjitter_contrast,95.12727272727273,89.558
+10,brightness_colorjitter_random_affine,87.66363636363636,84.186
+10,random_invert_random_posterize_random_solarize,88.38181818181818,91.172
+10,elastic_transform_random_invert_random_posterize,89.13636363636364,92.878
+10,rotation_saturation_shear,94.78181818181818,91.473
+10,random_affine_random_autocontrast_random_equalize,86.15454545454546,89.589
+10,random_solarize_random_transform_rotation,86.18181818181817,91.87
+10,al_withoutda_blur_random_transform,94.56363636363636,91.919
+10,blur_contrast_brightness,94.50909090909092,89.87100000000001
+10,random_invert_random_posterize_random_sharpeness,93.30909090909093,90.605
+10,saturation_shear_al_withoutda,94.9,91.552
+10,random_posterize_random_solarize_random_sharpeness,91.61818181818182,92.293
+10,colorjitter_random_affine_elastic_transform,83.45454545454545,85.648
