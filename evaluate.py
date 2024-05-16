@@ -12,7 +12,7 @@ Visualization_FileName = "Visualization.py"
 Comparison_FileName = "Comparison.py"
 Base_Code_FileName = "base_code.py"
 
-print('Start time is '+str(time.time()))
+
 with open('augumentation_techniques.json', 'r') as f:
     data = json.load(f)
 
