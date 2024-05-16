@@ -1,0 +1,71 @@
+classifier_name,dataset_name,accuracy
+AL_withoutDA,1,86.12
+AL_withoutDA,2,85.42
+AL_withoutDA,3,85.7
+AL_withoutDA,4,92
+AL_withoutDA,5,86.53
+AL_withoutDA,6,90.93
+AL_withoutDA,7,92.57
+AL_withoutDA,8,89.71
+AL_withoutDA,9,81.03
+AL_withoutDA,10,81.86
+Contrast,1,92.71
+Contrast,2,89.56
+Contrast,3,90.25
+Contrast,4,87.36
+Contrast,5,95.12
+Contrast,6,92.87
+Contrast,7,92.86
+Contrast,8,90.03
+Contrast,9,92.73
+Contrast,10,87.85
+Brightness,1,93.13
+Brightness,2,83.94
+Brightness,3,92.97
+Brightness,4,93.69
+Brightness,5,94.67
+Brightness,6,92.41
+Brightness,7,94.62
+Brightness,8,92.37
+Brightness,9,92.33
+Brightness,10,93.25
+Rotation,1,92.56
+Rotation,2,93.16
+Rotation,3,92.3
+Rotation,4,91.74
+Rotation,5,80.07
+Rotation,6,91.9
+Rotation,7,91.03
+Rotation,8,93.06
+Rotation,9,91.33
+Rotation,10,91.25
+Solarize,1,88.92
+Solarize,2,90.57
+Solarize,3,91.34
+Solarize,4,87.33
+Solarize,5,91.41
+Solarize,6,90.87
+Solarize,7,91.41
+Solarize,8,93.4
+Solarize,9,91.24
+Solarize,10,90.02
+Elastic Transform,1,90.76
+Elastic Transform,2,91.2
+Elastic Transform,3,90.69
+Elastic Transform,4,89.15
+Elastic Transform,5,91.15
+Elastic Transform,6,93.41
+Elastic Transform,7,89.2
+Elastic Transform,8,85.16
+Elastic Transform,9,88.47
+Elastic Transform,10,92.49
+Histogram Equalization,1,90.39
+Histogram Equalization,2,92.15
+Histogram Equalization,3,89.3
+Histogram Equalization,4,77.58
+Histogram Equalization,5,85.55
+Histogram Equalization,6,91.34
+Histogram Equalization,7,87.89
+Histogram Equalization,8,76.49
+Histogram Equalization,9,84.84
+Histogram Equalization,10,91.58
