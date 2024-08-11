@@ -1,0 +1,21 @@
+{
+  "augmentation_techniques": [
+    "withoutda",
+    "blur",
+    "brightness",
+    "colorjitter",
+    "contrast",
+    "elastic_transform",
+    "random_affine",
+    "random_autocontrast",
+    "random_equalize",
+    "random_invert",
+    "random_posterize",
+    "random_sharpeness",
+    "random_solarize",
+    "random_transform",
+    "rotation",
+    "saturation",
+    "shear"
+  ]
+}

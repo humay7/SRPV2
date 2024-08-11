@@ -1,0 +1,2 @@
+StartTime | EndTime | CurrentDate | CurrentTime | Total Time (seconds)
+2024-08-11 12:03:27 | 2024-08-11 19:33:27 | 2024-08-11 19:33:28 | 26999.677887439728
