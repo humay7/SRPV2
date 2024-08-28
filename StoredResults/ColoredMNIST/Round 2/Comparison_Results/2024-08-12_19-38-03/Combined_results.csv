@@ -1,0 +1,18 @@
+Final Epoch,MethodName,Final Train Accuracy,Final Test Accuracy
+10,blur,0.9963,0.04575
+10,brightness,0.99395,0.14875
+10,colorjitter,0.99665,0.1545
+10,contrast,0.99645,0.07875
+10,elastic_transform,0.99755,0.0855
+10,random_affine,0.99355,0.092
+10,random_autocontrast,0.9955,0.06375
+10,random_equalize,0.9954,0.15675
+10,random_invert,0.99515,0.12475
+10,random_posterize,0.9964,0.0595
+10,random_sharpeness,0.99745,0.06625
+10,random_solarize,0.99595,0.0424999999999999
+10,random_transform,0.9946,0.153
+10,rotation,0.99515,0.04325
+10,saturation,0.9965,0.084
+10,shear,0.99525,0.03475
+10,withoutda,0.9965,0.008
