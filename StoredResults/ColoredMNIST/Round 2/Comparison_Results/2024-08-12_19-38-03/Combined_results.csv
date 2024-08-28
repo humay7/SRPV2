@@ -16,3 +16,4 @@ Final Epoch,MethodName,Final Train Accuracy,Final Test Accuracy
 10,saturation,0.9965,0.084
 10,shear,0.99525,0.03475
 10,withoutda,0.9965,0.008
+10,grayscale,0.9968,0.488
