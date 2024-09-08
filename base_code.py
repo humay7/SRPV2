@@ -1,5 +1,3 @@
-base_code
-
 import numpy as np
 import threading
 import csv
