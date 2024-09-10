@@ -15,7 +15,7 @@ torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
-with open('/content/SRPV2/parameters.json', 'r') as f:
+with open('parameters.json', 'r') as f:
    params = json.load(f)
 
 epochs = params['epochs']
