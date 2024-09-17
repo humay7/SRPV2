@@ -1,58 +1,50 @@
-import numpy as np
-import os
 import time
-import pandas as pd
-from datetime import datetime
 import subprocess
-import json
+import os
+from datetime import datetime
 
+# Start the timer to measure the script's total execution time
+start_time = time.time()
 
-def main():
-    start_time = time.time()
-    Folder_Name = "DA_Codes"
-    Visualization_FileName = "Visualization.py"
-    Comparison_FileName = "Comparison.py"
-    Base_Code_FileName = "base_code.py"
+# Define file names
+Base_Code_FileName = "/content/SRPV2/StoredResults/ColoredMNIST/base_code.py"
+Visualization_FileName = "/content/SRPV2/StoredResults/ColoredMNIST/Visualization.py"
+Comparison_FileName = "/content/SRPV2/StoredResults/ColoredMNIST/Comparison.py"
 
+# Run the base code script
+try:
+    subprocess.run(["python", Base_Code_FileName])
+except Exception as e:
+    print(f"Error running {Base_Code_FileName}: {str(e)}")
 
-    with open('augumentation_techniques.json', 'r') as f:
-        data = json.load(f)
+# Optionally run the Visualization.py and Comparison.py (remove if not needed)
+try:
+    subprocess.run(["python", Visualization_FileName])
+except Exception as e:
+    print(f"Error running {Visualization_FileName}: {str(e)}")
 
-    techniques = data['augmentation_techniques']
-    print(techniques)
-
-
-
-    for name in techniques:
-        print('Current file is '+str(name))
-        try: 
-            subprocess.run(["python", Base_Code_FileName,name])
-            subprocess.run(["python", Visualization_FileName,name])
-        except: 
-            pass
-        print('******************************************************************************')
-        print('\n')
-
-    end_time = time.time()
+try:
     subprocess.run(["python", Comparison_FileName])
+except Exception as e:
+    print(f"Error running {Comparison_FileName}: {str(e)}")
 
-    total_time = end_time  - start_time
+# End the timer
+end_time = time.time()
 
-    current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
-    start_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
-    end_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
+# Calculate the total time taken
+total_time = end_time - start_time
 
-    if not os.path.exists("Computation_Time.txt"):
-        with open("Computation_Time.txt", "w") as file:
-            file.write("StartTime | EndTime | CurrentDate | CurrentTime | Total Time (seconds)\n")
+# Log the start, end, and total time
+current_datetime = time.strftime("%Y-%m-%d %H:%M:%S")
+start_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
+end_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
 
-    with open("Computation_Time.txt", "a") as file:
-        file.write(f"{start_datetime} | {end_datetime} | {current_datetime} | {total_time}\n")
+# Write computation time to a file
+if not os.path.exists("Computation_Time.txt"):
+    with open("Computation_Time.txt", "w") as file:
+        file.write("StartTime | EndTime | CurrentDate | Total Time (seconds)\n")
 
+with open("Computation_Time.txt", "a") as file:
+    file.write(f"{start_datetime} | {end_datetime} | {current_datetime} | {total_time}\n")
 
-
-    print("Computation time logged successfully.")
-
-
-if __name__ == '__main__':
-    main() 
+print("Computation time logged successfully.")
