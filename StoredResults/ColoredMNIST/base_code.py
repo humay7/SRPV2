@@ -97,8 +97,8 @@ class TensorLabelSubset(Subset):
         return img, torch.tensor(label)  # Convert label to tensor
 
 # Load datasets
-train_dataset = CustomMNISTDataset(root='/content/SRPV2/StoredResults/ColoredMNIST/train', apply_transform=False)
-test_dataset = datasets.ImageFolder(root='/content/SRPV2/StoredResults/ColoredMNIST/test', transform=transform_test)
+train_set = CustomMNISTDataset(root='/content/SRPV2/StoredResults/ColoredMNIST/ColoredMNIST/train', apply_transform=False)
+test_set = datasets.ImageFolder(root='/content/SRPV2/StoredResults/ColoredMNIST/ColoredMNIST/test', transform=transform_test)
     
 
 # Print dataset stats
