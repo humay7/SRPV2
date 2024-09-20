@@ -47,6 +47,10 @@ class AutoAugmentSubset(Subset):
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
         img = auto_augment_transform(img)  # Apply auto augment transform here
+        if img is None:
+          print("Image is none")
+        else:
+          print("Image is not None")
         return img, label
 
 # Define rotation transforms for the unlabeled set
@@ -195,15 +199,65 @@ def single_run(run_number):
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
 
     new_train_set = torch.utils.data.ConcatDataset([labeled_set, combined_unlabeled_set])
-
+    print(len(labeled_set))
     print(len(new_train_set))
+
+     # Training loop
+    for epoch in range(1, epochs + 1):
+        # Train the model
+        train_loss, train_accuracy = train_model(model, labeled_loader, optimizer, criterion)  # Assuming train_model function exists
+        # test_accuracy = test_model(model, test_loader)  # Assuming test_model function exists
+        print(f'Run {run_number} -> Epoch [{epoch}/{epochs}], LP:{len(labeled_indices)}, UP:{len(unlabeled_indices)}, Train Acc: {train_accuracy:.2f}%, Loss: {train_loss:.6f}')
+
+        # Store results (Assuming results_writer is defined)
+        # results_writer.writerow([run_number, epoch, train_loss, train_accuracy, test_accuracy])
+
+        if epoch < epochs:  # Avoid running uncertainty sampling in the last iteration
+            uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples_add_pool)  # Assuming uncertainty_sampling function exists
+            
+            # Extend labeled_indices with new uncertain samples
+            labeled_indices.extend(uncertain_indices)
+            
+            # Update unlabeled_indices after removing the newly labeled ones
+            unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
+
+            # Update loaders with the new labeled and unlabeled sets
+            labeled_loader = DataLoader(Subset(train_set, labeled_indices), batch_size=batch_size, shuffle=True)
+            unlabeled_loader = DataLoader(Subset(train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
+
+# The rest of the code remains unchanged (train_model, test_model functions, etc.)
+# Define a function for training the model
+def train_model(model, labeled_loader, optimizer, criterion):
+    model.train()
+    total_train_correct = 0
+    total_train_samples = 0
+    total_train_loss = 0
+
+    for images, labels in labeled_loader:
+        optimizer.zero_grad()
+        images = images.cuda()
+        labels = labels.cuda() 
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        _, predicted = torch.max(outputs.data, 1)
+        total_train_samples += labels.size(0)
+        total_train_correct += (predicted == labels).sum().item()
+        total_train_loss += loss.item()
+
+    train_accuracy = 100 * total_train_correct / total_train_samples
+    train_loss = total_train_loss / len(labeled_loader)
+    return train_loss, train_accuracy
+
 
 # Open a CSV file for writing results
 
     
     
-# for i in range(1, num_runs + 1):
-single_run(1)
+for i in range(1, num_runs + 1):
+  single_run(i)
     #     thread = threading.Thread(target=single_run, args=(i, writer))
     #     threads.append(thread)
     #     thread.start()
