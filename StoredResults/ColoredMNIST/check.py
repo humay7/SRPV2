@@ -16,6 +16,8 @@ from torch.utils.data import ConcatDataset
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
+import sys
+sys.path.append('/content/SRPV2/StoredResults/ColoredMNIST/autoaugment.py')
 
 with open('/content/SRPV2/StoredResults/ColoredMNIST/parameters.json', 'r') as f:
    params = json.load(f)
@@ -26,7 +28,204 @@ images_per_class = params['images_per_class']
 num_runs = params['num_runs']
 n_samples_add_pool = params['n_samples_add_pool']
 
-from autoaugment import ImageNetPolicy  # Import or define ImageNetPolicy
+# from autoaugment import ImageNetPolicy  # Import or define ImageNetPolicy
+from PIL import Image, ImageEnhance, ImageOps
+import numpy as np
+import random
+import sys
+import os
+curPath = os.path.abspath(os.path.dirname(__file__))
+rootPath = os.path.split(curPath)[0]
+sys.path.append(rootPath)
+
+
+class ImageNetPolicy(object):
+   """ Randomly choose one of the best 24 Sub-policies on ImageNet.
+
+
+       Example:
+       >>> policy = ImageNetPolicy()
+       >>> transformed = policy(image)
+
+
+       Example as a PyTorch Transform:
+       >>> transform=transforms.Compose([
+       >>>     transforms.Resize(256),
+       >>>     ImageNetPolicy(),
+       >>>     transforms.ToTensor()])
+   """
+   def __init__(self, fillcolor=(128, 128, 128)):
+       self.policies = [
+           SubPolicy(0.4, "posterize", 8, 0.6, "rotate", 9, fillcolor),
+           SubPolicy(0.6, "solarize", 5, 0.6, "autocontrast", 5, fillcolor),
+           SubPolicy(0.8, "equalize", 8, 0.6, "equalize", 3, fillcolor),
+           SubPolicy(0.6, "posterize", 7, 0.6, "posterize", 6, fillcolor),
+           SubPolicy(0.4, "equalize", 7, 0.2, "solarize", 4, fillcolor),
+
+
+           SubPolicy(0.4, "equalize", 4, 0.8, "rotate", 8, fillcolor),
+           SubPolicy(0.6, "solarize", 3, 0.6, "equalize", 7, fillcolor),
+           SubPolicy(0.8, "posterize", 5, 1.0, "equalize", 2, fillcolor),
+           SubPolicy(0.2, "rotate", 3, 0.6, "solarize", 8, fillcolor),
+           SubPolicy(0.6, "equalize", 8, 0.4, "posterize", 6, fillcolor),
+
+
+           SubPolicy(0.8, "rotate", 8, 0.4, "color", 0, fillcolor),
+           SubPolicy(0.4, "rotate", 9, 0.6, "equalize", 2, fillcolor),
+           SubPolicy(0.0, "equalize", 7, 0.8, "equalize", 8, fillcolor),
+           SubPolicy(0.6, "invert", 4, 1.0, "equalize", 8, fillcolor),
+           SubPolicy(0.6, "color", 4, 1.0, "contrast", 8, fillcolor),
+
+
+           SubPolicy(0.8, "rotate", 8, 1.0, "color", 2, fillcolor),
+           SubPolicy(0.8, "color", 8, 0.8, "solarize", 7, fillcolor),
+           SubPolicy(0.4, "sharpness", 7, 0.6, "invert", 8, fillcolor),
+           SubPolicy(0.6, "shearX", 5, 1.0, "equalize", 9, fillcolor),
+           SubPolicy(0.4, "color", 0, 0.6, "equalize", 3, fillcolor),
+
+
+           SubPolicy(0.4, "equalize", 7, 0.2, "solarize", 4, fillcolor),
+           SubPolicy(0.6, "solarize", 5, 0.6, "autocontrast", 5, fillcolor),
+           SubPolicy(0.6, "invert", 4, 1.0, "equalize", 8, fillcolor),
+           SubPolicy(0.6, "color", 4, 1.0, "contrast", 8, fillcolor)
+       ]
+
+
+
+
+   def __call__(self, img):
+       policy_idx = random.randint(0, len(self.policies) - 1)
+       return self.policies[policy_idx](img)
+
+
+   def __repr__(self):
+       return "AutoAugment ImageNet Policy"
+
+
+
+
+
+
+class SubPolicy(object):
+   def __init__(self, p1, operation1, magnitude_idx1, p2, operation2, magnitude_idx2, fillcolor=(128, 128, 128)):
+       ranges = {
+           "shearX": np.linspace(0, 0.3, 10),
+           "shearY": np.linspace(0, 0.3, 10),
+           "translateX": np.linspace(0, 150 / 331, 10),
+           "translateY": np.linspace(0, 150 / 331, 10),
+           "rotate": np.linspace(0, 30, 10),
+           "color": np.linspace(0.0, 0.9, 10),
+           "posterize": np.round(np.linspace(8, 4, 10), 0).astype(int),
+           "solarize": np.linspace(256, 0, 10),
+           "contrast": np.linspace(0.0, 0.9, 10),
+           "sharpness": np.linspace(0.0, 0.9, 10),
+           "brightness": np.linspace(0.0, 0.9, 10),
+           "autocontrast": [0] * 10,
+           "equalize": [0] * 10,
+           "invert": [0] * 10
+       }
+
+
+       # from https://stackoverflow.com/questions/5252170/specify-image-filling-color-when-rotating-in-python-with-pil-and-setting-expand
+       def rotate_with_fill(img, magnitude):
+           rot = img.convert("RGBA").rotate(magnitude)
+           return Image.composite(rot, Image.new("RGBA", rot.size, (128,) * 4), rot).convert(img.mode)
+
+
+       func = {
+           "shearX": lambda img, magnitude: img.transform(
+               img.size, Image.AFFINE, (1, magnitude * random.choice([-1, 1]), 0, 0, 1, 0),
+               Image.BICUBIC, fillcolor=fillcolor),
+           "shearY": lambda img, magnitude: img.transform(
+               img.size, Image.AFFINE, (1, 0, 0, magnitude * random.choice([-1, 1]), 1, 0),
+               Image.BICUBIC, fillcolor=fillcolor),
+           "translateX": lambda img, magnitude: img.transform(
+               img.size, Image.AFFINE, (1, 0, magnitude * img.size[0] * random.choice([-1, 1]), 0, 1, 0),
+               fillcolor=fillcolor),
+           "translateY": lambda img, magnitude: img.transform(
+               img.size, Image.AFFINE, (1, 0, 0, 0, 1, magnitude * img.size[1] * random.choice([-1, 1])),
+               fillcolor=fillcolor),
+           "rotate": lambda img, magnitude: rotate_with_fill(img, magnitude),
+           # "rotate": lambda img, magnitude: img.rotate(magnitude * random.choice([-1, 1])),
+           "color": lambda img, magnitude: ImageEnhance.Color(img).enhance(1 + magnitude * random.choice([-1, 1])),
+           "posterize": lambda img, magnitude: ImageOps.posterize(img, magnitude),
+           "solarize": lambda img, magnitude: ImageOps.solarize(img, magnitude),
+           "contrast": lambda img, magnitude: ImageEnhance.Contrast(img).enhance(
+               1 + magnitude * random.choice([-1, 1])),
+           "sharpness": lambda img, magnitude: ImageEnhance.Sharpness(img).enhance(
+               1 + magnitude * random.choice([-1, 1])),
+           "brightness": lambda img, magnitude: ImageEnhance.Brightness(img).enhance(
+               1 + magnitude * random.choice([-1, 1])),
+           "autocontrast": lambda img, magnitude: ImageOps.autocontrast(img),
+           "equalize": lambda img, magnitude: ImageOps.equalize(img),
+           "invert": lambda img, magnitude: ImageOps.invert(img)
+       }
+
+
+       # self.name = "{}_{:.2f}_and_{}_{:.2f}".format(
+       #     operation1, ranges[operation1][magnitude_idx1],
+       #     operation2, ranges[operation2][magnitude_idx2])
+       self.p1 = p1
+       self.operation1 = func[operation1]
+       self.magnitude1 = ranges[operation1][magnitude_idx1]
+       self.p2 = p2
+       self.operation2 = func[operation2]
+       self.magnitude2 = ranges[operation2][magnitude_idx2]
+
+
+
+
+   def __call__(self, img):
+       if random.random() < self.p1: img = self.operation1(img, self.magnitude1)
+       if random.random() < self.p2: img = self.operation2(img, self.magnitude2)
+       return img
+
+
+
+
+# if __name__ == '__main__':
+#    from matplotlib import pyplot as plt
+
+
+
+
+#    def rotate_with_fill(img, magnitude):
+#        rot = img.convert("RGBA").rotate(magnitude)
+#        return Image.composite(rot, Image.new("RGBA", rot.size, (128,) * 4), rot).convert(img.mode)
+
+
+#    dataset_root = "/data/DataSets/miniImageNet"
+
+
+#    img_paths = ['n0153282900000018.jpg',
+#                 'n0153282900000019.jpg',
+#                 'n0153282900000020.jpg',
+#                 'n0153282900000021.jpg',
+#                 'n0153282900000023.jpg']
+
+
+#    img_paths = [os.path.join(dataset_root, 'images', item) for item in img_paths]
+#    img = Image.open(img_paths[0]).convert('RGB')
+
+
+#    changed_img = rotate_with_fill(img, 0)
+
+
+#    plt.figure()
+#    plt.subplot(121)
+#    plt.imshow(img)
+#    plt.subplot(122)
+#    plt.imshow(changed_img)
+#    plt.show()
+
+
+
+
+
+
+
+
+
 
 transform_test = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -47,10 +246,6 @@ class AutoAugmentSubset(Subset):
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
         img = auto_augment_transform(img)  # Apply auto augment transform here
-        if img is None:
-          print("Image is none")
-        else:
-          print("Image is not None")
         return img, label
 
 # Define rotation transforms for the unlabeled set
@@ -149,6 +344,7 @@ def single_run(run_number):
 # model, optimizer, criterion: Your model and optimizer
 
 # Initializing empty lists for labeled and unlabeled indices
+    # Split the dataset into labeled and unlabeled indices
     labeled_indices = []
     unlabeled_indices = []
 
@@ -159,7 +355,7 @@ def single_run(run_number):
         selected_indices = class_indices[:min(images_per_class, len(class_indices))]
         labeled_indices.extend(selected_indices)
 
-    # Create labeled and unlabeled sets
+    # Create labeled and unlabeled sets from the original dataset
     labeled_set = Subset(train_set, labeled_indices)
     unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
     unlabeled_set = TensorLabelSubset(train_set, unlabeled_indices)  # Assuming you have TensorLabelSubset class
@@ -177,7 +373,7 @@ def single_run(run_number):
 
     # Apply augmentation to the labeled set
     for img_idx, (img, label) in enumerate(labeled_set):
-        augmented_image = apply_random_transform(img)  # Assuming apply_random_transform function is defined
+        augmented_image = apply_random_transform(img)  # Apply the random transformation
         augmented_images.append(augmented_image)  # Append transformed image (tensor)
         augmented_labels.append(torch.tensor(label))  # Ensure label is a tensor
         augmented_indices.append(start_idx + len(augmented_images) - 1)  # Assign new unique index
@@ -188,17 +384,29 @@ def single_run(run_number):
     # Combine the original unlabeled set with the augmented dataset
     combined_unlabeled_set = torch.utils.data.ConcatDataset([unlabeled_set, augmented_dataset])
 
-    # Update unlabeled indices with the new augmented indices
-    unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices)) + augmented_indices
+    # Update the unlabeled indices with the new augmented indices
+    unlabeled_indices = list(set(range(len(unlabeled_set)))) + augmented_indices  # Only use valid indices for unlabeled_set and add augmented indices
+
+    # Update DataLoaders for the new combined dataset
+    train_set.apply_transform = True  # Switch back to Tensor format for DataLoader
+
+    # Concatenate the labeled_set and combined_unlabeled_set into new_train_set
+    new_train_set = torch.utils.data.ConcatDataset([labeled_set, combined_unlabeled_set])
+
+    # Adjusting labeled_indices and unlabeled_indices to reflect the new concatenated dataset
+    len_labeled = len(labeled_set)
+    labeled_indices = [i for i in range(len_labeled)]  # Keep original indices for labeled_set
+    unlabeled_indices = [i + len_labeled for i in range(len(unlabeled_set))]  # Offset by labeled_set length for unlabeled_set
 
     # Update DataLoaders
-    train_set.apply_transform = True  # Switch back to Tensor format for DataLoader
-    unlabeled_loader = DataLoader(combined_unlabeled_set, batch_size=batch_size, shuffle=True)
-    labeled_set = AutoAugmentSubset(train_set, labeled_indices)  # Assuming AutoAugmentSubset class exists
-    labeled_loader = DataLoader(labeled_set, batch_size=batch_size, shuffle=True)
+    labeled_loader = DataLoader(Subset(new_train_set, labeled_indices), batch_size=batch_size, shuffle=True)
+    unlabeled_loader = DataLoader(Subset(new_train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
 
-    new_train_set = torch.utils.data.ConcatDataset([labeled_set, combined_unlabeled_set])
+    # At this point, new_train_set contains both labeled and unlabeled data,
+    # and DataLoaders are updated accordingly
+
+    # new_train_set = torch.utils.data.ConcatDataset([labeled_set, combined_unlabeled_set])
     print(len(labeled_set))
     print(len(new_train_set))
 
@@ -219,11 +427,11 @@ def single_run(run_number):
             labeled_indices.extend(uncertain_indices)
             
             # Update unlabeled_indices after removing the newly labeled ones
-            unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
+            unlabeled_indices = list(set(range(len(new_train_set))) - set(labeled_indices))
 
             # Update loaders with the new labeled and unlabeled sets
-            labeled_loader = DataLoader(Subset(train_set, labeled_indices), batch_size=batch_size, shuffle=True)
-            unlabeled_loader = DataLoader(Subset(train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
+            labeled_loader = DataLoader(Subset(new_train_set, labeled_indices), batch_size=batch_size, shuffle=True)
+            unlabeled_loader = DataLoader(Subset(new_train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
 
 # The rest of the code remains unchanged (train_model, test_model functions, etc.)
 # Define a function for training the model
