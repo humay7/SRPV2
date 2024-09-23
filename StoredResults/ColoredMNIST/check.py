@@ -291,10 +291,19 @@ class CustomMNISTDataset(torchvision.datasets.ImageFolder):
 from torchvision import transforms
 
 # Define a new transformation that converts labels to tensors
+# class TensorLabelSubset(Subset):
+#     def __getitem__(self, index):
+#         img, label = super().__getitem__(index)
+#         return img, torch.tensor(label)  # Convert label to tensor
+
 class TensorLabelSubset(Subset):
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
-        return img, torch.tensor(label)  # Convert label to tensor
+        # Ensure both image and label are tensors
+        img = torch.tensor(img) if not isinstance(img, torch.Tensor) else img
+        label = torch.tensor(label) if not isinstance(label, torch.Tensor) else label
+        return img, label
+
 
 # Load datasets
 train_set = CustomMNISTDataset(root='/content/SRPV2/StoredResults/ColoredMNIST/ColoredMNIST/train', apply_transform=False)
@@ -391,24 +400,41 @@ def single_run(run_number):
     train_set.apply_transform = True  # Switch back to Tensor format for DataLoader
 
     # Concatenate the labeled_set and combined_unlabeled_set into new_train_set
-    new_train_set = torch.utils.data.ConcatDataset([labeled_set, combined_unlabeled_set])
+    # new_train_set = torch.utils.data.ConcatDataset([train_set, augmented_dataset])
+    # for img_idx, (img, label) in enumerate(new_train_set):
+    #   print(type(img), type(label))
 
+
+    new_set = torch.utils.data.ConcatDataset([train_set, augmented_dataset])
+
+    # Define indices for the subset you want to apply `TensorLabelSubset` on
+    # For simplicity, let's assume you want to use the entire dataset for this
+    all_indices = list(range(len(new_set)))
+
+    # Wrap the concatenated dataset in TensorLabelSubset
+    new_train_set = TensorLabelSubset(new_set, all_indices)
+    # for img_idx, (img, label) in enumerate(new_train_set):
+    #   print(type(img), type(label))
     # Adjusting labeled_indices and unlabeled_indices to reflect the new concatenated dataset
-    len_labeled = len(labeled_set)
-    labeled_indices = [i for i in range(len_labeled)]  # Keep original indices for labeled_set
-    unlabeled_indices = [i + len_labeled for i in range(len(unlabeled_set))]  # Offset by labeled_set length for unlabeled_set
+    # len_labeled = len(labeled_set)
+    # labeled_indices = [i for i in range(len_labeled)]  # Keep original indices for labeled_set
+    # unlabeled_indices = [i + len_labeled for i in range(len(unlabeled_set))]  # Offset by labeled_set length for unlabeled_set
 
     # Update DataLoaders
     labeled_loader = DataLoader(Subset(new_train_set, labeled_indices), batch_size=batch_size, shuffle=True)
     unlabeled_loader = DataLoader(Subset(new_train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
 
+    # for img_idx, (img, label) in enumerate(unlabeled_loader):
+    #   print(type(img), type(label))
+      # print(type(img), type(label)) 
     # At this point, new_train_set contains both labeled and unlabeled data,
     # and DataLoaders are updated accordingly
 
     # new_train_set = torch.utils.data.ConcatDataset([labeled_set, combined_unlabeled_set])
     print(len(labeled_set))
     print(len(new_train_set))
+    print(len(unlabeled_loader))
 
      # Training loop
     for epoch in range(1, epochs + 1):
@@ -432,6 +458,10 @@ def single_run(run_number):
             # Update loaders with the new labeled and unlabeled sets
             labeled_loader = DataLoader(Subset(new_train_set, labeled_indices), batch_size=batch_size, shuffle=True)
             unlabeled_loader = DataLoader(Subset(new_train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
+
+
+            # for img_idx, (img, label) in enumerate(unlabeled_loader):
+            #   print(type(img), type(label)) 
 
 # The rest of the code remains unchanged (train_model, test_model functions, etc.)
 # Define a function for training the model
