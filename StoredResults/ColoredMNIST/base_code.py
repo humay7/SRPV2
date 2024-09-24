@@ -16,7 +16,7 @@ torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
-with open('/content/SRPV2/StoredResults/ColoredMNIST/parameters.json', 'r') as f:
+with open('parameters.json', 'r') as f:
    params = json.load(f)
 
 epochs = params['epochs']
@@ -287,15 +287,14 @@ with open('resnet_results.csv', 'w', newline='') as file:
     writer.writerow(['Run', 'Epoch', 'Train Loss', 'Train Accuracy', 'Test Accuracy'])
 
     # Start parallel runs
-    # threads = []
+    threads = []
     for i in range(1, num_runs + 1):
-      single_run(i, writer)
-    #     thread = threading.Thread(target=single_run, args=(i, writer))
-    #     threads.append(thread)
-    #     thread.start()
+     thread = threading.Thread(target=single_run, args=(i, writer))
+     threads.append(thread)
+     thread.start()
 
-    # # Wait for all threads to finish
-    # for thread in threads:
-    #     thread.join()
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
 
 print("All runs completed.")
