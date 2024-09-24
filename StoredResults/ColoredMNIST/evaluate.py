@@ -7,9 +7,9 @@ from datetime import datetime
 start_time = time.time()
 
 # Define file names
-Base_Code_FileName = "/content/SRPV2/StoredResults/ColoredMNIST/base_code.py"
-Visualization_FileName = "/content/SRPV2/StoredResults/ColoredMNIST/Visualization.py"
-Comparison_FileName = "/content/SRPV2/StoredResults/ColoredMNIST/Comparison.py"
+Base_Code_FileName = "base_code.py"
+Visualization_FileName = "Visualization.py"
+Comparison_FileName = "Comparison.py"
 
 # Run the base code script
 try:
