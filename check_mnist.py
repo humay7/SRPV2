@@ -24,11 +24,11 @@ images_per_class = params['images_per_class']
 num_runs = params['num_runs']
 n_samples_add_pool = params['n_samples_add_pool']
 
-from autoaugment import ImageNetPolicy  # Import or define ImageNetPolicy
+from autoaugment import MNISTPolicy  # Import or define ImageNetPolicy
 
 auto_augment_transform = transforms.Compose([
     transforms.Grayscale(num_output_channels=3),  # Convert grayscale to 3 channels
-    ImageNetPolicy(),  # AutoAugment policy for ImageNet
+    MNISTPolicy(),  # AutoAugment policy for ImageNet
     transforms.ToTensor(),
     transforms.Normalize((0.1307,), (0.3081,))  # Normalize for 3 channels
 ])
