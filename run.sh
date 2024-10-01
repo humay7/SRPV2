@@ -6,5 +6,5 @@
 #SBATCH --partition=STUD
 #SBATCH --gres=gpu:1
 source activate GPU
-srun python check_mnist.py
+srun python evaluate.py
 
