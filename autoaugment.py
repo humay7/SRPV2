@@ -72,6 +72,42 @@ class ImageNetPolicy(object):
 
 
 
+class MNISTPolicy(object):
+    """ Randomly choose one of the best 20 Sub-policies on MNIST.
+
+        Example:
+        >>> policy = MNISTPolicy()
+        >>> transformed = policy(image)
+
+        Example as a PyTorch Transform:
+        >>> transform=transforms.Compose([
+        >>>     MNISTPolicy(),
+        >>>     transforms.ToTensor()])
+    """
+    def __init__(self, fillcolor=128):
+        self.policies = [
+            SubPolicy(0.7, "rotate", 2, 0.3, "translateX", 9, fillcolor),
+            SubPolicy(0.8, "sharpness", 1, 0.9, "sharpness", 3, fillcolor),
+            SubPolicy(0.5, "shearY", 8, 0.7, "translateY", 9, fillcolor),
+            SubPolicy(0.5, "autocontrast", 8, 0.9, "equalize", 2, fillcolor),
+            SubPolicy(0.2, "shearY", 7, 0.3, "posterize", 7, fillcolor),
+            SubPolicy(0.3, "sharpness", 9, 0.7, "brightness", 9, fillcolor),
+            SubPolicy(0.6, "equalize", 5, 0.5, "equalize", 1, fillcolor),
+            SubPolicy(0.6, "contrast", 7, 0.6, "sharpness", 5, fillcolor),
+            SubPolicy(0.3, "equalize", 7, 0.4, "autocontrast", 8, fillcolor),
+            SubPolicy(0.4, "translateY", 3, 0.2, "sharpness", 6, fillcolor),
+            SubPolicy(0.2, "equalize", 0, 0.6, "autocontrast", 0, fillcolor),
+            SubPolicy(0.2, "equalize", 8, 0.8, "equalize", 4, fillcolor),
+            SubPolicy(0.9, "autocontrast", 4, 0.8, "equalize", 6, fillcolor),
+            SubPolicy(0.7, "translateY", 9, 0.9, "autocontrast", 1, fillcolor)
+        ]
+
+    def __call__(self, img):
+        policy_idx = random.randint(0, len(self.policies) - 1)
+        return self.policies[policy_idx](img)
+
+    def __repr__(self):
+        return "AutoAugment MNIST Policy"
 
 
 
