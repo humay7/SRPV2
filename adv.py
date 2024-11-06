@@ -3,31 +3,15 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-import torchvision.transforms.functional as F
+from torch.utils.data import DataLoader, random_split, Subset
 import numpy as np
-import threading
 import csv
 import warnings
-import matplotlib.pyplot as plt
 import random
-import os
-from datetime import datetime
-import pandas as pd
-from shutil import move
-warnings.filterwarnings("ignore")
-import cv2
-from PIL import Image
 import json
-import sys
+import torchvision.transforms.functional as F
 
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data import Subset,DataLoader, random_split
+warnings.filterwarnings("ignore")
 
 # Define the model using ResNet-18
 class Model(nn.Module):
@@ -46,39 +30,34 @@ class TrainOps:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
 
-        # Experiment settings
-        self.source_dataset = 'mnist'
-        self.no_images = 60000
-
         # Training settings
-        self.k = 6
+        self.k = 2  # Reduced for faster testing
         self.batch_size = 32
         self.gamma = 1.0
-        self.learning_rate_max = 1.0
-        self.T_adv = 15
-        self.T_min = 100
-
+        self.learning_rate_max = 0.1  # Adjusted for quick training
+        self.T_adv = 5  # Reduced for faster testing
         self.data_dir = './data/'
 
     def load_data(self):
-        # Load data with transformations
+        # Load a smaller subset of MNIST for faster training
         transform = transforms.Compose([
             transforms.Resize((32, 32)),
             transforms.Grayscale(num_output_channels=3),
             transforms.ToTensor(),                  
             transforms.Normalize((0.1307,), (0.3081,))
         ])
+        
+        full_data = torchvision.datasets.MNIST(root=self.data_dir, train=True, download=True, transform=transform)
+        
+        # Use a subset of the dataset (e.g., 10% of the training set)
+        subset_size = int(0.1 * len(full_data))  # 10% of the dataset
+        train_subset, _ = random_split(full_data, [subset_size, len(full_data) - subset_size])
 
-        # if dataset == 'mnist':
-        #     data = torchvision.datasets.MNIST(self.data_dir, train=(split == 'train'), download=True, transform=transform)
-        # elif dataset == 'svhn':
-        #     data = torchvision.datasets.SVHN(self.data_dir, split=split, download=True, transform=transform)
-        data = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-        loader = DataLoader(data, batch_size=self.batch_size, shuffle=True)
+        loader = DataLoader(train_subset, batch_size=self.batch_size, shuffle=True, num_workers=2)
         return loader
 
     def generate_adversarial_images(self):
-        # Load dataset
+        # Load the subset dataset
         source_train_loader = self.load_data()
 
         # Loss function and optimizer for adversarial training
@@ -112,20 +91,17 @@ class TrainOps:
                 adv_images = adv_images.detach()
 
                 # Convert adversarial images to grayscale and resize to (28, 28)
-                adv_images = torch.stack([F.resize(F.rgb_to_grayscale(img), (28, 28)) for img in adv_images])
+                adv_images = torch.stack([transforms.Resize((28, 28))(F.rgb_to_grayscale(img)) for img in adv_images])
                 adv_images = adv_images.squeeze(1)  # Remove the singleton channel dimension
 
                 # Print shapes to confirm
-                
-                # Update the original dataset with adversarial images
-                source_train_loader.dataset.data = torch.cat((source_train_loader.dataset.data, adv_images.cpu()))
-                source_train_loader.dataset.targets = torch.cat((source_train_loader.dataset.targets, labels.cpu()))
+                # print("Adjusted adversarial images shape:", adv_images.shape)
 
             counter_k += 1
             if counter_k >= self.k:
                 break
 
-        # Return the updated dataset
+        # Return the updated subset dataset loader
         return source_train_loader
 
 # Instantiate and use the classes
@@ -133,14 +109,11 @@ model = Model()  # ResNet-18 modified for MNIST
 train_ops = TrainOps(model)
 train_set = train_ops.generate_adversarial_images()
 
-
-
-
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
-with open('parameters.json', 'r') as f:
+with open('/content/SRPV2/parameters.json', 'r') as f:
     params = json.load(f)
 
 epochs = params['epochs']
@@ -175,12 +148,17 @@ transform_test = transforms.Compose([
 ])
 
 # Load datasets
-# train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=augmentation_transform)
 test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_test)
+
+# Define the size of the smaller subset (e.g., 10% of the test set)
+subset_size = int(0.1 * len(test_set))  # Adjust the percentage as needed
+
+# Create the smaller test subset and assign it to test_set
+test_set, _ = random_split(test_set, [subset_size, len(test_set) - subset_size])
 
 # Print dataset stats
 print('Dataset Stats:')
-print('Train Dataset Size: {}, Test Dataset Size:{} \n'.format(len(train_set), len(test_set)))
+print('Train Dataset Size: {}, Test Dataset Size:{} \n'.format(len(train_set.dataset), len(test_set)))
 
 # Define a function to perform a single run
 def single_run(run_number, results_writer):
@@ -194,16 +172,28 @@ def single_run(run_number, results_writer):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
 
+    # Access the original dataset from the DataLoader or Subset
+    if isinstance(train_set, Subset):
+        dataset = train_set.dataset  # Access the original dataset from the Subset
+        if hasattr(dataset, 'dataset'):  # If it is nested (e.g., Subset of Subset)
+            dataset = dataset.dataset
+    else:
+        dataset = train_set
+
     labeled_indices = []
     unlabeled_indices = []
+
     for class_label in range(10):
-        class_indices = np.where(np.array(train_set.targets) == class_label)[0]
+        # Access the targets from the original dataset directly
+        class_indices = np.where(np.array(dataset.targets) == class_label)[0]
         np.random.shuffle(class_indices)
         selected_indices = class_indices[:min(images_per_class, len(class_indices))]
         labeled_indices.extend(selected_indices)
-    labeled_set = torch.utils.data.Subset(train_set, labeled_indices)
-    unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
-    unlabeled_set = torch.utils.data.Subset(train_set, unlabeled_indices)
+
+    labeled_set = Subset(dataset, labeled_indices)
+    unlabeled_indices = list(set(range(len(dataset))) - set(labeled_indices))
+    unlabeled_set = Subset(dataset, unlabeled_indices)
+
     # Create data loaders
     labeled_loader = DataLoader(labeled_set, batch_size=batch_size, shuffle=True)
     unlabeled_loader = DataLoader(unlabeled_set, batch_size=batch_size, shuffle=True)
@@ -213,15 +203,19 @@ def single_run(run_number, results_writer):
     for epoch in range(1, epochs + 1):
         train_loss, train_accuracy = train_model(model, labeled_loader, optimizer, criterion)
         test_accuracy = test_model(model, test_loader)
-        print('Run {} -> Epoch [{}/{}], LP:{}, UP:{}, Train Acc: {:.2f}%, Loss: {:.6f}, Test Acc: {:.2f}%'.format(run_number,epoch, epochs,len(labeled_indices),len(unlabeled_indices), train_accuracy, train_loss,test_accuracy))
+        print('Run {} -> Epoch [{}/{}], LP:{}, UP:{}, Train Acc: {:.2f}%, Loss: {:.6f}, Test Acc: {:.2f}%'.format(
+            run_number, epoch, epochs, len(labeled_indices), len(unlabeled_indices), train_accuracy, train_loss, test_accuracy))
+        
         # Store results
         results_writer.writerow([run_number, epoch, train_loss, train_accuracy, test_accuracy])
-        if(epoch < epochs):    #Avoid Running Uncertainty Sampling during Last Iteration
+
+        # Avoid running uncertainty sampling during the last iteration
+        if epoch < epochs:
             uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples_add_pool)
             labeled_indices.extend(uncertain_indices)
-            unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
-            labeled_loader = DataLoader(torch.utils.data.Subset(train_set, labeled_indices), batch_size=batch_size, shuffle=True)
-            unlabeled_loader = DataLoader(torch.utils.data.Subset(train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
+            unlabeled_indices = list(set(range(len(dataset))) - set(labeled_indices))
+            labeled_loader = DataLoader(Subset(dataset, labeled_indices), batch_size=batch_size, shuffle=True)
+            unlabeled_loader = DataLoader(Subset(dataset, unlabeled_indices), batch_size=batch_size, shuffle=True)
 
 # Define a function for training the model
 def train_model(model, labeled_loader, optimizer, criterion):
@@ -272,16 +266,7 @@ with open('resnet_results.csv', 'w', newline='') as file:
     writer.writerow(['Run', 'Epoch', 'Train Loss', 'Train Accuracy', 'Test Accuracy'])
 
     # Start parallel runs
-    # threads = []
     for i in range(1, num_runs + 1):
-        # thread = threading.Thread(target=single_run, args=(i, writer))
-        # threads.append(thread)
-        # thread.start()
         single_run(i, writer)
-
-    # Wait for all threads to finish
-    # for thread in threads:
-    #     thread.join()
-print("All runs completed.")
 
 print("All runs completed.")
