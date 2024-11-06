@@ -56,23 +56,23 @@ class TrainOps:
     def generate_adversarial_images(self):
         # Load dataset
         source_train_loader = self.load_data(self.source_dataset, split='train')
-
+    
         # Loss function and optimizer for adversarial training
         criterion = nn.CrossEntropyLoss()
         max_optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate_max)
-
+    
         counter_k = 0
-
+    
         for t in range(self.k):  # Loop over adversarial training steps
             for images, labels in source_train_loader:
                 images, labels = images.to(self.device), labels.to(self.device)
-
+    
                 # Initialize adversarial images
-                adv_images = images.clone().detach().requires_grad_(True)
-
+                adv_images = images.clone().detach().requires_grad_(True)  # Make adv_images a leaf tensor
+    
                 for n in range(self.T_adv):  # Gradient ascent for adversarial training
                     max_optimizer.zero_grad()
-
+    
                     # Forward pass for adversarial images
                     adv_outputs = self.model(adv_images)
                     
@@ -82,15 +82,16 @@ class TrainOps:
                     # Backward and update adversarial images
                     max_loss_1.backward()
                     adv_images = adv_images + self.gamma * adv_images.grad.sign()
-
+                    adv_images = adv_images.detach().requires_grad_(True)  # Re-initialize requires_grad
+    
                 # Update the original dataset with adversarial images
                 source_train_loader.dataset.data = torch.cat((source_train_loader.dataset.data, adv_images.cpu()))
                 source_train_loader.dataset.targets = torch.cat((source_train_loader.dataset.targets, labels.cpu()))
-
+    
             counter_k += 1
             if counter_k >= self.k:
                 break
-
+    
         # Return the updated dataset
         return source_train_loader
 
