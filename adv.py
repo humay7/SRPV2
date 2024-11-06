@@ -4,9 +4,6 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-import numpy as np
-import os
-import configparser
 
 # Define the model using ResNet-18
 class Model(nn.Module):
@@ -20,34 +17,24 @@ class Model(nn.Module):
         return self.model(x)
 
 class TrainOps:
-    def __init__(self, model, exp_dir):
+    def __init__(self, model):
         self.model = model
-        self.exp_dir = exp_dir
-
-        # Device configuration (GPU if available)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
 
-        # Load the experiment configuration
-        self.load_exp_config()
-
-        self.data_dir = './data/'
-        
-    def load_exp_config(self):
-        config = configparser.ConfigParser()
-        config.read(os.path.join(self.exp_dir, 'exp_configuration'))
-
         # Experiment settings
-        self.source_dataset = config.get('EXPERIMENT_SETTINGS', 'source_dataset')
-        self.no_images = config.getint('EXPERIMENT_SETTINGS', 'no_images')
+        self.source_dataset = 'mnist'
+        self.no_images = 60000
 
         # Training settings
-        self.k = config.getint('MAIN_SETTINGS', 'k')
-        self.batch_size = config.getint('MAIN_SETTINGS', 'batch_size')
-        self.gamma = config.getfloat('MAIN_SETTINGS', 'gamma')
-        self.learning_rate_max = config.getfloat('MAIN_SETTINGS', 'learning_rate_max')
-        self.T_adv = config.getint('MAIN_SETTINGS', 'T_adv')
-        self.T_min = config.getint('MAIN_SETTINGS', 'T_min')
+        self.k = 6
+        self.batch_size = 32
+        self.gamma = 1.0
+        self.learning_rate_max = 1.0
+        self.T_adv = 15
+        self.T_min = 100
+
+        self.data_dir = './data/'
 
     def load_data(self, dataset, split='train'):
         # Load data with transformations
@@ -107,9 +94,7 @@ class TrainOps:
         # Return the updated dataset
         return source_train_loader
 
-
+# Instantiate and use the classes
 model = Model()  # ResNet-18 modified for MNIST
-exp_dir = './experiment'  # Directory containing `exp_configuration`
-
-train_ops = TrainOps(model, exp_dir)
+train_ops = TrainOps(model)
 updated_dataset_loader = train_ops.generate_adversarial_images()
