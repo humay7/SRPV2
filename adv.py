@@ -174,20 +174,20 @@ def single_run(run_number, results_writer):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
 
-    # Access the dataset within the train_set Subset
-    dataset = train_set.dataset
-    print(len(dataset))
+    # Directly use train_set without accessing train_set.dataset
+    print('Train Set Length:', len(train_set))
+    
     labeled_indices = []
     unlabeled_indices = []
     for class_label in range(10):
-        class_indices = np.where(np.array(dataset.targets) == class_label)[0]
+        class_indices = np.where(np.array(train_set.dataset.targets)[train_set.indices] == class_label)[0]
         np.random.shuffle(class_indices)
         selected_indices = class_indices[:min(images_per_class, len(class_indices))]
         labeled_indices.extend(selected_indices)
 
-    labeled_set = Subset(dataset, labeled_indices)
-    unlabeled_indices = list(set(range(len(dataset))) - set(labeled_indices))
-    unlabeled_set = Subset(dataset, unlabeled_indices)
+    labeled_set = Subset(train_set, labeled_indices)
+    unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
+    unlabeled_set = Subset(train_set, unlabeled_indices)
 
     # Create data loaders
     labeled_loader = DataLoader(labeled_set, batch_size=batch_size, shuffle=True)
@@ -207,9 +207,9 @@ def single_run(run_number, results_writer):
         if epoch < epochs:  # Avoid Running Uncertainty Sampling during the last iteration
             uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples_add_pool)
             labeled_indices.extend(uncertain_indices)
-            unlabeled_indices = list(set(range(len(dataset))) - set(labeled_indices))
-            labeled_loader = DataLoader(Subset(dataset, labeled_indices), batch_size=batch_size, shuffle=True)
-            unlabeled_loader = DataLoader(Subset(dataset, unlabeled_indices), batch_size=batch_size, shuffle=True)
+            unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
+            labeled_loader = DataLoader(Subset(train_set, labeled_indices), batch_size=batch_size, shuffle=True)
+            unlabeled_loader = DataLoader(Subset(train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
 
 # Define a function for training the model
 def train_model(model, labeled_loader, optimizer, criterion):
