@@ -53,12 +53,14 @@ class TrainOps:
         subset_size = int(0.1 * len(full_data))  # 10% of the dataset
         train_subset, _ = random_split(full_data, [subset_size, len(full_data) - subset_size])
 
-        loader = DataLoader(train_subset, batch_size=self.batch_size, shuffle=True, num_workers=2)
-        return loader
+        return train_subset
 
     def generate_adversarial_images(self):
         # Load the subset dataset
-        source_train_loader = self.load_data()
+        train_subset = self.load_data()
+
+        # Create DataLoader for the subset
+        source_train_loader = DataLoader(train_subset, batch_size=self.batch_size, shuffle=True, num_workers=2)
 
         # Loss function and optimizer for adversarial training
         criterion = nn.CrossEntropyLoss()
@@ -101,8 +103,8 @@ class TrainOps:
             if counter_k >= self.k:
                 break
 
-        # Return the updated subset dataset loader
-        return source_train_loader
+        # Return the updated subset dataset, not a DataLoader
+        return train_subset
 
 # Instantiate and use the classes
 model = Model()  # ResNet-18 modified for MNIST
@@ -158,7 +160,7 @@ test_set, _ = random_split(test_set, [subset_size, len(test_set) - subset_size])
 
 # Print dataset stats
 print('Dataset Stats:')
-print('Train Dataset Size: {}, Test Dataset Size:{} \n'.format(len(train_set.dataset), len(test_set)))
+print('Train Dataset Size: {}, Test Dataset Size: {}'.format(len(train_set), len(test_set)))
 
 # Define a function to perform a single run
 def single_run(run_number, results_writer):
@@ -172,19 +174,12 @@ def single_run(run_number, results_writer):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
 
-    # Access the original dataset from the DataLoader or Subset
-    if isinstance(train_set, Subset):
-        dataset = train_set.dataset  # Access the original dataset from the Subset
-        if hasattr(dataset, 'dataset'):  # If it is nested (e.g., Subset of Subset)
-            dataset = dataset.dataset
-    else:
-        dataset = train_set
-
+    # Access the dataset within the train_set Subset
+    dataset = train_set.dataset
+    print(len(dataset))
     labeled_indices = []
     unlabeled_indices = []
-
     for class_label in range(10):
-        # Access the targets from the original dataset directly
         class_indices = np.where(np.array(dataset.targets) == class_label)[0]
         np.random.shuffle(class_indices)
         selected_indices = class_indices[:min(images_per_class, len(class_indices))]
@@ -203,14 +198,13 @@ def single_run(run_number, results_writer):
     for epoch in range(1, epochs + 1):
         train_loss, train_accuracy = train_model(model, labeled_loader, optimizer, criterion)
         test_accuracy = test_model(model, test_loader)
-        print('Run {} -> Epoch [{}/{}], LP:{}, UP:{}, Train Acc: {:.2f}%, Loss: {:.6f}, Test Acc: {:.2f}%'.format(
-            run_number, epoch, epochs, len(labeled_indices), len(unlabeled_indices), train_accuracy, train_loss, test_accuracy))
+        print(f'Run {run_number} -> Epoch [{epoch}/{epochs}], LP: {len(labeled_indices)}, UP: {len(unlabeled_indices)}, '
+              f'Train Acc: {train_accuracy:.2f}%, Loss: {train_loss:.6f}, Test Acc: {test_accuracy:.2f}%')
         
         # Store results
         results_writer.writerow([run_number, epoch, train_loss, train_accuracy, test_accuracy])
-
-        # Avoid running uncertainty sampling during the last iteration
-        if epoch < epochs:
+        
+        if epoch < epochs:  # Avoid Running Uncertainty Sampling during the last iteration
             uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples_add_pool)
             labeled_indices.extend(uncertain_indices)
             unlabeled_indices = list(set(range(len(dataset))) - set(labeled_indices))
