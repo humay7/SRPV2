@@ -44,20 +44,29 @@ class TrainOps:
     def load_data(self):
         # Apply transformations to make MNIST images compatible with ResNet-18
         transform = transforms.Compose([
-            # transforms.Resize((32, 32)),
             transforms.Grayscale(num_output_channels=3),  # Convert to RGB (3 channels)
             transforms.ToTensor(),                  
             transforms.Normalize((0.1307,), (0.3081,))
         ])
         
-        # Load the MNIST dataset and apply the transform
-        full_data = torchvision.datasets.MNIST(root=self.data_dir, train=True, download=True, transform=transform)
+        # Transform to convert labels to tensors
+        target_transform = transforms.Lambda(lambda y: torch.tensor(y))
+
+        # Load the MNIST dataset and apply the transforms
+        full_data = torchvision.datasets.MNIST(
+            root=self.data_dir,
+            train=True,
+            download=True,
+            transform=transform,
+            target_transform=target_transform  # Ensure labels are tensors
+        )
         
         # Use a subset of the dataset (e.g., 10% of the training set)
         subset_size = int(0.1 * len(full_data))  # 10% of the dataset
         train_subset, _ = random_split(full_data, [subset_size, len(full_data) - subset_size])
 
         return train_subset
+
 
     def generate_adversarial_images(self): 
         # Load the subset dataset
@@ -81,6 +90,10 @@ class TrainOps:
                 for images, labels in source_train_loader:
                     images, labels = images.to(self.device), labels.to(self.device)
 
+                    # Check that labels are tensors and convert if necessary
+                    if not isinstance(labels, torch.Tensor):
+                        labels = torch.tensor(labels, dtype=torch.long, device=self.device)
+
                     # Initialize adversarial images
                     adv_images = images.clone().detach().requires_grad_(True)
 
@@ -101,7 +114,7 @@ class TrainOps:
                     # Detach the adversarial images from the computation graph before processing further
                     adv_images = adv_images.detach()
 
-                    # Store adversarial images and labels
+                    # Ensure labels are tensors before appending
                     adv_images_list.append(adv_images.cpu())
                     adv_labels_list.append(labels.cpu())
 
@@ -123,7 +136,11 @@ class TrainOps:
                 adv_labels_list.clear()
                 
                 counter_k += 1
+
         return combined_dataset
+
+
+
 
 
 
@@ -294,6 +311,18 @@ def test_model(model, test_loader):
     test_accuracy = 100 * correct / total
     return test_accuracy
 
+
+def check_tensors_in_subset(train_subset):
+    for i, (image, label) in enumerate(train_subset):
+        if not isinstance(image, torch.Tensor):
+            print(f"Image at index {i} is not a tensor: {type(image)}")
+        if not isinstance(label, torch.Tensor):
+            print(f"Label at index {i} is not a tensor: {type(label)}")
+        if i >= 5:  # Check the first few samples and then break
+            break
+    print("Check complete.")
+
+
 # Open a CSV file for writing results
 with open('resnet_results.csv', 'w', newline='') as file:
     writer = csv.writer(file)
@@ -304,3 +333,6 @@ with open('resnet_results.csv', 'w', newline='') as file:
         single_run(i, writer)
 
 print("All runs completed.")
+
+# train_subset = train_ops.load_data()
+# check_tensors_in_subset(train_subset)
