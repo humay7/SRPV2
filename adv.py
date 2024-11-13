@@ -33,7 +33,7 @@ class TrainOps:
         self.model.to(self.device)
         self.train_iters = 10001
         # Training settings
-        self.k = 2  # Reduced for faster testing
+        self.k = 1  # Reduced for faster testing
         self.batch_size = 32
         self.gamma = 1.0
         self.learning_rate_max = 0.1  # Adjusted for quick training
@@ -62,7 +62,7 @@ class TrainOps:
         )
         
         # Use a subset of the dataset (e.g., 10% of the training set)
-        subset_size = int(0.1 * len(full_data))  # 10% of the dataset
+        subset_size = int(0.05 * len(full_data))  # 10% of the dataset
         train_subset, _ = random_split(full_data, [subset_size, len(full_data) - subset_size])
 
         return train_subset
@@ -194,7 +194,7 @@ transform_test = transforms.Compose([
 test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_test)
 
 # Define the size of the smaller subset (e.g., 10% of the test set)
-subset_size = int(0.1 * len(test_set))  # Adjust the percentage as needed
+subset_size = int(0.6 * len(test_set))  # Adjust the percentage as needed
 
 # Create the smaller test subset and assign it to test_set
 test_set, _ = random_split(test_set, [subset_size, len(test_set) - subset_size])
@@ -323,6 +323,9 @@ def check_tensors_in_subset(train_subset):
     print("Check complete.")
 
 
+
+
+
 # Open a CSV file for writing results
 with open('resnet_results.csv', 'w', newline='') as file:
     writer = csv.writer(file)
@@ -333,6 +336,54 @@ with open('resnet_results.csv', 'w', newline='') as file:
         single_run(i, writer)
 
 print("All runs completed.")
+
+# import matplotlib.pyplot as plt
+# from IPython.display import Image
+
+# def show_adversarial_images_save(adv_images, labels, num_images=8, filename='adversarial_images.png'):
+#     """
+#     Save several adversarial images to a file and display the file in Colab.
+
+#     Parameters:
+#     - adv_images: Tensor containing adversarial images, shape [N, C, H, W]
+#     - labels: Tensor containing labels for adversarial images, shape [N]
+#     - num_images: Number of adversarial images to display
+#     - filename: Name of the file to save the image
+#     """
+#     # Set up the figure grid
+#     plt.figure(figsize=(12, 6))
+    
+#     for i in range(num_images):
+#         ax = plt.subplot(2, num_images // 2, i + 1)
+        
+#         # Convert tensor to numpy for plotting
+#         image = adv_images[i].squeeze().permute(1, 2, 0).cpu().numpy()  # Convert to HWC format
+        
+#         # Adjust normalization for display
+#         image = (image * 0.3081 + 0.1307).clip(0, 1)
+        
+#         plt.imshow(image, cmap='gray')
+#         plt.title(f"Label: {labels[i].item()}")
+#         plt.axis("off")
+
+#     plt.tight_layout()
+#     plt.savefig(filename)  # Save figure as PNG file
+#     plt.close()  # Close the plot to avoid displaying it inline
+
+#     # Display the saved image in Colab
+#     return Image(filename=filename)
+
+# # Generate adversarial images
+# train_set = train_ops.generate_adversarial_images()
+
+# # Load a batch of adversarial images to visualize
+# adv_loader = DataLoader(train_set, batch_size=8, shuffle=True)
+# adv_images, adv_labels = next(iter(adv_loader))
+
+# # Display adversarial images by saving and loading the file
+# show_adversarial_images_save(adv_images, adv_labels)
+
+
 
 # train_subset = train_ops.load_data()
 # check_tensors_in_subset(train_subset)
