@@ -31,19 +31,20 @@ class TrainOps:
         self.model = model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
-
+        self.train_iters = 10001
         # Training settings
         self.k = 2  # Reduced for faster testing
         self.batch_size = 32
         self.gamma = 1.0
         self.learning_rate_max = 0.1  # Adjusted for quick training
         self.T_adv = 5  # Reduced for faster testing
+        self.T_min = 50
         self.data_dir = './data/'
 
     def load_data(self):
         # Apply transformations to make MNIST images compatible with ResNet-18
         transform = transforms.Compose([
-            transforms.Resize((32, 32)),
+            # transforms.Resize((32, 32)),
             transforms.Grayscale(num_output_channels=3),  # Convert to RGB (3 channels)
             transforms.ToTensor(),                  
             transforms.Normalize((0.1307,), (0.3081,))
@@ -58,7 +59,7 @@ class TrainOps:
 
         return train_subset
 
-    def generate_adversarial_images(self):
+    def generate_adversarial_images(self): 
         # Load the subset dataset
         train_subset = self.load_data()
 
@@ -73,54 +74,57 @@ class TrainOps:
         adv_images_list = []
         adv_labels_list = []
 
-        for t in range(self.k):  # Loop over adversarial training steps
-            for images, labels in source_train_loader:
-                images, labels = images.to(self.device), labels.to(self.device)
+        print("Training")
+        for t in range(self.train_iters):  # Main training loop
+            if ((t + 1) % self.T_min == 0) and (counter_k < self.k):  # Generate adversarial images
+                print(f'Generating adversarial images [iter {counter_k}]')
+                for images, labels in source_train_loader:
+                    images, labels = images.to(self.device), labels.to(self.device)
 
-                # Initialize adversarial images
-                adv_images = images.clone().detach().requires_grad_(True)
+                    # Initialize adversarial images
+                    adv_images = images.clone().detach().requires_grad_(True)
 
-                for n in range(self.T_adv):  # Gradient ascent for adversarial training
-                    max_optimizer.zero_grad()
+                    for n in range(self.T_adv):  # Gradient ascent for adversarial training
+                        max_optimizer.zero_grad()
 
-                    # Forward pass for adversarial images
-                    adv_outputs = self.model(adv_images)
-                    
-                    # max_loss_1: Classification loss on adversarial images
-                    max_loss_1 = criterion(adv_outputs, labels)
-                    
-                    # Backward and update adversarial images
-                    max_loss_1.backward()
-                    adv_images = adv_images + self.gamma * adv_images.grad.sign()
-                    adv_images = adv_images.detach().requires_grad_(True)
+                        # Forward pass for adversarial images
+                        adv_outputs = self.model(adv_images)
+                        
+                        # max_loss_1: Classification loss on adversarial images
+                        max_loss_1 = criterion(adv_outputs, labels)
+                        
+                        # Backward and update adversarial images
+                        max_loss_1.backward()
+                        adv_images = adv_images + self.gamma * adv_images.grad.sign()
+                        adv_images = adv_images.detach().requires_grad_(True)
 
-                # Detach the adversarial images from the computation graph before processing further
-                adv_images = adv_images.detach()
+                    # Detach the adversarial images from the computation graph before processing further
+                    adv_images = adv_images.detach()
 
-                # Convert adversarial images to grayscale and resize to (28, 28)
-                adv_images = torch.stack([transforms.Resize((28, 28))(F.rgb_to_grayscale(img)) for img in adv_images])
-                adv_images = adv_images.squeeze(1)  # Remove the singleton channel dimension
+                    # Store adversarial images and labels
+                    adv_images_list.append(adv_images.cpu())
+                    adv_labels_list.append(labels.cpu())
 
-                # Store adversarial images and labels
-                adv_images_list.append(adv_images.cpu())
-                adv_labels_list.append(labels.cpu())
+                # Concatenate all generated adversarial images and labels for this iteration
+                adv_images_tensor = torch.cat(adv_images_list, dim=0)
+                adv_labels_tensor = torch.cat(adv_labels_list, dim=0)
 
-            counter_k += 1
-            if counter_k >= self.k:
-                break
+                # Create a new dataset with adversarial samples
+                adv_dataset = TensorDataset(adv_images_tensor, adv_labels_tensor)
 
-        # Concatenate all generated adversarial images and labels
-        adv_images_tensor = torch.cat(adv_images_list, dim=0)
-        adv_labels_tensor = torch.cat(adv_labels_list, dim=0)
+                # Combine the original train_subset with the adversarial dataset
+                combined_dataset = ConcatDataset([train_subset, adv_dataset])
+                
+                # Update the training loader with the new combined dataset
+                source_train_loader = DataLoader(combined_dataset, batch_size=self.batch_size, shuffle=True, num_workers=2)
 
-        # Create a new dataset with adversarial samples
-        adv_dataset = TensorDataset(adv_images_tensor, adv_labels_tensor)
-
-        # Combine the original train_subset with the adversarial dataset
-        combined_dataset = ConcatDataset([train_subset, adv_dataset])
-
-        # Return the combined dataset
+                # Reset adversarial lists for the next iteration
+                adv_images_list.clear()
+                adv_labels_list.clear()
+                
+                counter_k += 1
         return combined_dataset
+
 
 
 # Instantiate and use the classes
