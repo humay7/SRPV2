@@ -10,6 +10,8 @@ import warnings
 import random
 import json
 import torchvision.transforms.functional as F
+from torch.utils.data import ConcatDataset, TensorDataset
+
 
 warnings.filterwarnings("ignore")
 
@@ -39,14 +41,15 @@ class TrainOps:
         self.data_dir = './data/'
 
     def load_data(self):
-        # Load a smaller subset of MNIST for faster training
+        # Apply transformations to make MNIST images compatible with ResNet-18
         transform = transforms.Compose([
             transforms.Resize((32, 32)),
-            transforms.Grayscale(num_output_channels=3),
+            transforms.Grayscale(num_output_channels=3),  # Convert to RGB (3 channels)
             transforms.ToTensor(),                  
             transforms.Normalize((0.1307,), (0.3081,))
         ])
         
+        # Load the MNIST dataset and apply the transform
         full_data = torchvision.datasets.MNIST(root=self.data_dir, train=True, download=True, transform=transform)
         
         # Use a subset of the dataset (e.g., 10% of the training set)
@@ -67,6 +70,8 @@ class TrainOps:
         max_optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate_max)
 
         counter_k = 0
+        adv_images_list = []
+        adv_labels_list = []
 
         for t in range(self.k):  # Loop over adversarial training steps
             for images, labels in source_train_loader:
@@ -96,20 +101,35 @@ class TrainOps:
                 adv_images = torch.stack([transforms.Resize((28, 28))(F.rgb_to_grayscale(img)) for img in adv_images])
                 adv_images = adv_images.squeeze(1)  # Remove the singleton channel dimension
 
-                # Print shapes to confirm
-                # print("Adjusted adversarial images shape:", adv_images.shape)
+                # Store adversarial images and labels
+                adv_images_list.append(adv_images.cpu())
+                adv_labels_list.append(labels.cpu())
 
             counter_k += 1
             if counter_k >= self.k:
                 break
 
-        # Return the updated subset dataset, not a DataLoader
-        return train_subset
+        # Concatenate all generated adversarial images and labels
+        adv_images_tensor = torch.cat(adv_images_list, dim=0)
+        adv_labels_tensor = torch.cat(adv_labels_list, dim=0)
+
+        # Create a new dataset with adversarial samples
+        adv_dataset = TensorDataset(adv_images_tensor, adv_labels_tensor)
+
+        # Combine the original train_subset with the adversarial dataset
+        combined_dataset = ConcatDataset([train_subset, adv_dataset])
+
+        # Return the combined dataset
+        return combined_dataset
+
 
 # Instantiate and use the classes
 model = Model()  # ResNet-18 modified for MNIST
 train_ops = TrainOps(model)
 train_set = train_ops.generate_adversarial_images()
+# Generate adversarial images and directly assign to `train_set` as the updated dataset
+# train_set = train_ops.generate_adversarial_images().dataset  # Use `.dataset` to get full updated dataset
+
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -179,8 +199,24 @@ def single_run(run_number, results_writer):
     
     labeled_indices = []
     unlabeled_indices = []
+
+    # Retrieve targets from ConcatDataset containing Subset or TensorDataset objects
+    all_targets = []
+    for subset in train_set.datasets:
+        if isinstance(subset, Subset):
+            # For Subset, access the targets from the underlying dataset using indices
+            subset_targets = np.array(subset.dataset.targets)[subset.indices]
+        elif isinstance(subset, TensorDataset):
+            # For TensorDataset, the labels are stored as the second tensor
+            subset_targets = subset.tensors[1].numpy()
+        else:
+            raise TypeError("Unsupported dataset type in ConcatDataset.")
+        all_targets.extend(subset_targets)
+    all_targets = np.array(all_targets)
+
     for class_label in range(10):
-        class_indices = np.where(np.array(train_set.dataset.targets)[train_set.indices] == class_label)[0]
+        # Find indices of each class label
+        class_indices = np.where(all_targets == class_label)[0]
         np.random.shuffle(class_indices)
         selected_indices = class_indices[:min(images_per_class, len(class_indices))]
         labeled_indices.extend(selected_indices)
