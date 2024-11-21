@@ -139,13 +139,13 @@ print('Dataset Stats:')
 print('Train Dataset Size: {}, Test Dataset Size: {}'.format(len(train_set), len(test_set)))
 
 # Define a function to perform a single run
-def single_run(run_number, results_writer):
+def single_run(train_set, run_number, results_writer):
     model = Model().cuda()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
 
     # Directly use train_set without accessing train_set.dataset
-    print('Train Set Length:', len(train_set))
+    # print('Train Set Length:', len(train_set))
     
     labeled_indices = []
     unlabeled_indices = []
@@ -174,13 +174,23 @@ def single_run(run_number, results_writer):
         results_writer.writerow([run_number, epoch, train_loss, train_accuracy, test_accuracy])
         
         if epoch < epochs:  # Avoid Running Uncertainty Sampling during the last iteration
+            # Generate adversarial dataset and update unlabeled set
             adv_dataset = generate_adversarial_images(model, labeled_loader, criterion, gamma, T_adv)
-            unlabeled_set = ConcatDataset([unlabeled_set, adv_dataset])
+            train_set = ConcatDataset([train_set, adv_dataset])  # Update train_set
+            unlabeled_set = ConcatDataset([unlabeled_set, adv_dataset])  # Update unlabeled set
+            
+            # **Create a new DataLoader for unlabeled_set after updating it**
             unlabeled_loader = DataLoader(unlabeled_set, batch_size=batch_size, shuffle=True)
-
+            
+            # Perform uncertainty sampling
             uncertain_indices = uncertainty_sampling(model, unlabeled_loader, n_samples_add_pool)
             labeled_indices.extend(uncertain_indices)
+            
+            # Recalculate unlabeled and labeled indices
+            labeled_indices = list(set(labeled_indices))  # Ensure no duplicates in labeled_indices
             unlabeled_indices = list(set(range(len(train_set))) - set(labeled_indices))
+            
+            # Update DataLoaders for labeled and unlabeled sets
             labeled_loader = DataLoader(Subset(train_set, labeled_indices), batch_size=batch_size, shuffle=True)
             unlabeled_loader = DataLoader(Subset(train_set, unlabeled_indices), batch_size=batch_size, shuffle=True)
 
@@ -249,7 +259,7 @@ with open('resnet_results.csv', 'w', newline='') as file:
 
     # Start parallel runs
     for i in range(1, num_runs + 1):
-        single_run(i, writer)
+        single_run(train_set, i, writer)
 
 print("All runs completed.")
 
