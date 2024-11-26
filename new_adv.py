@@ -44,17 +44,26 @@ def load_data():
     return dataset
 
 # Generate adversarial images
+# Generate adversarial images
 def generate_adversarial_images(model, labeled_loader, criterion, gamma, T_adv):
     """
     Generate adversarial images from 50% of the labeled set.
     """
     model.eval()  # Set the model to evaluation mode for adversarial generation
+
+    # Determine half of the labeled dataset
+    half_size = len(labeled_loader.dataset) // 2
+    subset_indices = list(range(half_size))  # Take the first half
+    half_loader = DataLoader(
+        Subset(labeled_loader.dataset, subset_indices), 
+        batch_size=labeled_loader.batch_size, 
+        shuffle=False
+    )
+
     adv_images_list = []
     adv_labels_list = []
 
-    half_loader = iter(labeled_loader)
-    for _ in range(len(labeled_loader) // 2):  # Process only half the labeled set
-        images, labels = next(half_loader)
+    for images, labels in half_loader:
         images, labels = images.cuda(), labels.cuda()
 
         # Initialize adversarial images
@@ -66,7 +75,9 @@ def generate_adversarial_images(model, labeled_loader, criterion, gamma, T_adv):
             loss = criterion(outputs, labels)
             loss.backward()
             adv_images = adv_images + gamma * adv_images.grad.sign()
-            adv_images = adv_images.detach().requires_grad_(True)
+
+            # Clip and re-attach gradient
+            adv_images = torch.clamp(adv_images.detach(), min=0.0, max=1.0).requires_grad_(True)
 
         adv_images_list.append(adv_images.cpu())
         adv_labels_list.append(labels.cpu())
