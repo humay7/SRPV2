@@ -214,8 +214,10 @@ def train_model(model, labeled_loader, optimizer, criterion):
 
     for images, labels in labeled_loader:
       
-        print(f"Batch size: {images.size(0)}")  # Check actual batch size
-
+        # print(f"Batch size: {images.size(0)}")  # Check actual batch size
+        if len(images) == 1:
+            print("Single-element batch found!")  # Debugging message
+            continue  # Skip this batch if necessary
         optimizer.zero_grad()
         images = images.cuda()
         labels = labels.cuda() 
