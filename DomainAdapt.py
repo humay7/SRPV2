@@ -48,6 +48,7 @@ from augumentation import get_augmentation
 
 target_transform = transforms.Compose([
     transforms.Resize((32, 32)),
+    transforms.Grayscale(num_output_channels=3),
     transforms.ToTensor(),
     transforms.Normalize((0.1307,), (0.3081,))
 ])
@@ -159,7 +160,7 @@ for aug_name in augmentation_techniques:
     # optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)  
-
+  
     for epoch in range(1, 11):
         train(epoch)
         test()
@@ -171,7 +172,7 @@ for aug_name in augmentation_techniques:
     torch.save(model.state_dict(), save_path)
     print(f"Model saved at {save_path}")
     model = load_model(save_path)
-    evaluate_loaded_model(model)
+    evaluate_loaded_model(model, aug_name)
 # # Print all results
 # print("\nFinal Results:")
 # for aug, (loss, acc) in results.items():
