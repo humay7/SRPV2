@@ -8,25 +8,72 @@ import itertools
 import os
 from datetime import datetime
 
-source_transform = transforms.Compose([
-    transforms.Resize((32, 32)),
-    transforms.Grayscale(num_output_channels=3),
-    transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
-    transforms.ToTensor(),
-    transforms.Normalize((0.1307,), (0.3081,))
-])
+import torch
+import torch.nn as nn
 
-target_transform = transforms.Compose([
-    transforms.Resize((32, 32)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
 
-source_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=source_transform)
-target_dataset = datasets.ImageFolder(root='./data/MNIST-M/test', transform=target_transform)
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
 
-source_loader = DataLoader(source_dataset, batch_size=64, shuffle=True)
-target_loader = DataLoader(target_dataset, batch_size=64, shuffle=True)
+
+class AdversarialTransform(nn.Module):
+    def __init__(self, model, criterion, gamma=1.0, T_adv=5):
+        """
+        Args:
+            model (nn.Module): A pretrained model used to compute gradients.
+            criterion: The loss function (e.g., nn.CrossEntropyLoss()).
+            gamma (float): Step size for adversarial perturbation.
+            T_adv (int): Number of adversarial iterations.
+        """
+        super(AdversarialTransform, self).__init__()  # Ensure proper initialization
+        self.model = model
+        self.criterion = criterion
+        self.gamma = gamma
+        self.T_adv = T_adv
+
+    def forward(self, image):
+        """
+        Args:
+            image (Tensor): An input image tensor in [0,1].
+        Returns:
+            Tensor: The adversarially perturbed image.
+        """
+        # Move the image to the model's device and add a batch dimension.
+        device = next(self.model.parameters()).device
+        image = image.to(device).unsqueeze(0)  # Shape: [1, C, H, W]
+
+        # Clone the image and enable gradient computation.
+        image_adv = image.clone().detach().requires_grad_(True)
+        
+        # Set the model to evaluation mode.
+        self.model.eval()
+        
+        # Use the model's own prediction as a pseudo-label.
+        with torch.no_grad():
+            output = self.model(image)
+            pseudo_label = output.argmax(dim=1)
+
+        # Perform T_adv steps of gradient ascent to perturb the image.
+        for _ in range(self.T_adv):
+            output_adv = self.model(image_adv)
+            loss = self.criterion(output_adv, pseudo_label)
+            self.model.zero_grad()
+            if image_adv.grad is not None:
+                image_adv.grad.data.zero_()
+            loss.backward()
+            # Update the image in the direction of the gradient sign.
+            image_adv = image_adv + self.gamma * image_adv.grad.sign()
+            # Ensure pixel values remain in [0, 1].
+            image_adv = torch.clamp(image_adv, 0.0, 1.0).detach().requires_grad_(True)
+
+        # Remove the batch dimension and return to CPU.
+        return image_adv.squeeze(0).cpu()
+
+
 
 class CORALLoss(nn.Module):
     def __init__(self):
@@ -48,12 +95,46 @@ class DomainAdaptationModel(nn.Module):
     def forward(self, x):
         features = self.feature_extractor(x)
         return self.classifier(features)
-
+        
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = DomainAdaptationModel().to(device)
 criterion = nn.CrossEntropyLoss()
 coral_loss = CORALLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+adversarial_transform = AdversarialTransform(model, criterion, gamma=1.0, T_adv=5)
+
+# Define your transformation pipeline.
+# Note: The adversarial transform is applied after converting the image to a tensor,
+# so that the image values are in [0,1]. You may then apply normalization afterwards.
+
+source_transform = transforms.Compose([
+    transforms.Resize((32, 32)),
+    transforms.Grayscale(num_output_channels=3),
+    # transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+    transforms.ToTensor(),
+    adversarial_transform,
+    transforms.Normalize((0.1307,), (0.3081,))
+])
+
+target_transform = transforms.Compose([
+    transforms.Resize((32, 32)),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+source_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=source_transform)
+target_dataset = datasets.ImageFolder(root='./data/MNIST-M/testing', transform=target_transform)
+
+source_loader = DataLoader(source_dataset, batch_size=64, shuffle=True)
+target_loader = DataLoader(target_dataset, batch_size=64, shuffle=True)
+
+
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# model = DomainAdaptationModel().to(device)
+# criterion = nn.CrossEntropyLoss()
+# coral_loss = CORALLoss()
+# optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 def train(epoch):
     model.train()
