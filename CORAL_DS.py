@@ -10,54 +10,54 @@ from datetime import datetime
 
 import torch
 import torch.nn as nn
-
-import torch
-import torch.nn as nn
-import torchvision.transforms as transforms
-
-import torch
-import torch.nn as nn
 import torchvision.transforms as transforms
 
 
-class AdversarialTransform(nn.Module):
+class AdversarialTransform:
     def __init__(self, model, criterion, gamma=1.0, T_adv=5):
         """
+        A PyTorch-compatible transform for generating adversarial examples.
+        
         Args:
-            model (nn.Module): A pretrained model used to compute gradients.
-            criterion: The loss function (e.g., nn.CrossEntropyLoss()).
+            model (nn.Module): Pretrained model used for computing gradients.
+            criterion: Loss function (e.g., nn.CrossEntropyLoss()).
             gamma (float): Step size for adversarial perturbation.
             T_adv (int): Number of adversarial iterations.
         """
-        super(AdversarialTransform, self).__init__()  # Ensure proper initialization
         self.model = model
         self.criterion = criterion
         self.gamma = gamma
         self.T_adv = T_adv
+        self.device = next(self.model.parameters()).device  # Get model device
 
-    def forward(self, image):
+    def __call__(self, image):
         """
+        Apply adversarial perturbation to an image.
+
         Args:
-            image (Tensor): An input image tensor in [0,1].
+            image (Tensor): Input image tensor in range [0,1].
+        
         Returns:
-            Tensor: The adversarially perturbed image.
+            Tensor: Adversarially perturbed image.
         """
-        # Move the image to the model's device and add a batch dimension.
-        device = next(self.model.parameters()).device
-        image = image.to(device).unsqueeze(0)  # Shape: [1, C, H, W]
+        # Ensure the image is in tensor format and move it to the device
+        if not isinstance(image, torch.Tensor):
+            raise TypeError("Expected a torch.Tensor, but got {}".format(type(image)))
 
-        # Clone the image and enable gradient computation.
+        image = image.to(self.device).unsqueeze(0)  # Add batch dimension
+
+        # Clone image and enable gradient computation
         image_adv = image.clone().detach().requires_grad_(True)
-        
-        # Set the model to evaluation mode.
+
+        # Set model to evaluation mode
         self.model.eval()
-        
-        # Use the model's own prediction as a pseudo-label.
+
+        # Generate pseudo-label
         with torch.no_grad():
             output = self.model(image)
             pseudo_label = output.argmax(dim=1)
 
-        # Perform T_adv steps of gradient ascent to perturb the image.
+        # Perform adversarial perturbation
         for _ in range(self.T_adv):
             output_adv = self.model(image_adv)
             loss = self.criterion(output_adv, pseudo_label)
@@ -65,13 +65,14 @@ class AdversarialTransform(nn.Module):
             if image_adv.grad is not None:
                 image_adv.grad.data.zero_()
             loss.backward()
-            # Update the image in the direction of the gradient sign.
+
+            # Update image with adversarial perturbation
             image_adv = image_adv + self.gamma * image_adv.grad.sign()
-            # Ensure pixel values remain in [0, 1].
             image_adv = torch.clamp(image_adv, 0.0, 1.0).detach().requires_grad_(True)
 
-        # Remove the batch dimension and return to CPU.
-        return image_adv.squeeze(0).cpu()
+        return image_adv.squeeze(0)  # Remove batch dimension
+
+
 
 
 
@@ -113,7 +114,7 @@ source_transform = transforms.Compose([
     transforms.Grayscale(num_output_channels=3),
     # transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
     transforms.ToTensor(),
-    adversarial_transform,
+    AdversarialTransform(model, criterion, gamma=1.0, T_adv=5),
     transforms.Normalize((0.1307,), (0.3081,))
 ])
 
