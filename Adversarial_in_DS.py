@@ -9,7 +9,6 @@ import os
 from datetime import datetime
 from torch.utils.data import DataLoader, random_split, Subset, ConcatDataset, TensorDataset
 
-
 def generate_adversarial_images(model, labeled_loader, criterion, gamma, T_adv):
     """
     Generate adversarial images from 50% of the labeled set.
@@ -104,23 +103,41 @@ coral_loss = CORALLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 T_adv = 5 
 coral_coefficient = 0.000
+gamma = 1.0
 
-adv_dataset = generate_adversarial_images(model, labeled_loader, criterion, gamma, T_adv)
+source_loader = DataLoader(source_dataset, batch_size=64, shuffle=True)
+adv_dataset = generate_adversarial_images(model, source_loader, criterion, gamma, T_adv)
 combined_source_dataset = ConcatDataset([source_dataset, adv_dataset])
 
 
-source_loader = DataLoader(combined_source_dataset, batch_size=64, shuffle=True)
+combined_source_loader = DataLoader(combined_source_dataset, batch_size=64, shuffle=True)
 target_loader = DataLoader(target_dataset, batch_size=64, shuffle=True)
+
+# Print the number of batches in the source_loader
+print(f"Number of batches in source_loader: {len(source_loader)}")
+
+# Print the number of images in the source dataset
+print(f"Size of source dataset: {len(source_loader.dataset)}")
+
+# Print the number of images in the adversarial dataset
+print(f"Size of adversarial dataset: {len(adv_dataset)}")
+
+# Print the number of images in the combined source dataset
+print(f"Size of combined source dataset: {len(combined_source_dataset)}")
+
+# Print the number of batches in the combined source loader
+print(f"Number of batches in combined_source_loader: {len(combined_source_loader)}")
+
 
 def train(epoch):
     model.train()
     total_loss, total_correct = 0, 0
     
-    if len(source_loader) > len(target_loader):
+    if len(combined_source_loader) > len(target_loader):
         target_iter = itertools.cycle(target_loader)
-        data_iterator = zip(source_loader, target_iter)
+        data_iterator = zip(combined_source_loader, target_iter)
     else:
-        source_iter = itertools.cycle(source_loader)
+        source_iter = itertools.cycle(combined_source_loader)
         data_iterator = zip(source_iter, target_loader)
     
     for (source_data, source_labels), (target_data, _) in data_iterator:
@@ -136,7 +153,7 @@ def train(epoch):
         total_loss += loss.item()
         _, predicted = torch.max(source_outputs.data, 1)
         total_correct += (predicted == source_labels).sum().item()
-    print(f'Epoch {epoch}, Train Loss: {total_loss/len(source_loader):.4f}, Train Acc: {100*total_correct/len(combined_source_dataset):.2f}%')
+    print(f'Epoch {epoch}, Train Loss: {total_loss/len(combined_source_loader):.4f}, Train Acc: {100*total_correct/len(combined_source_dataset):.2f}%')
 
 def test():
     model.eval()
