@@ -101,7 +101,7 @@ criterion = nn.CrossEntropyLoss()
 coral_loss = CORALLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 T_adv = 5 
-coral_coefficient = 0.001
+coral_coefficient = 0.000
 
 adv_dataset = generate_adversarial_images(model, labeled_loader, criterion, gamma, T_adv)
 combined_source_dataset = ConcatDataset([source_dataset, adv_dataset])
@@ -128,7 +128,7 @@ def train(epoch):
         source_features = model.feature_extractor(source_data)
         target_features = model.feature_extractor(target_data)
         source_outputs = model.classifier(source_features)
-        loss = criterion(source_outputs, source_labels) + 0.00 * coral_loss(source_features, target_features)
+        loss = criterion(source_outputs, source_labels) + coral_coefficient * coral_loss(source_features, target_features)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
