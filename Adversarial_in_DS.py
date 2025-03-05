@@ -101,6 +101,7 @@ criterion = nn.CrossEntropyLoss()
 coral_loss = CORALLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 T_adv = 5 
+coral_coefficient = 0.001
 
 adv_dataset = generate_adversarial_images(model, labeled_loader, criterion, gamma, T_adv)
 combined_source_dataset = ConcatDataset([source_dataset, adv_dataset])
