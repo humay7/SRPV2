@@ -68,8 +68,29 @@ target_transform = transforms.Compose([
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
+def load_data():
+    transform = transforms.Compose([
+        transforms.Resize((32, 32)),
+        transforms.Grayscale(num_output_channels=3),
+        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+    target_transform = transforms.Lambda(lambda y: torch.tensor(y))
 
-source_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=source_transform)
+    # Load the MNIST dataset and apply the transforms
+    dataset = datasets.MNIST(
+        root='./data',
+        train=True,
+        download=True,
+        transform=transform,
+        target_transform=target_transform  # Ensure labels are tensors
+    )
+        
+    return dataset
+
+# source_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=source_transform)
+source_dataset = load_data()
 target_dataset = datasets.ImageFolder(root='./data/MNIST-M/testing', transform=target_transform)
 
 
